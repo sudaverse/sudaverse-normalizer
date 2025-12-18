@@ -497,4 +497,4 @@ The project has been tested with:
 
 ---
 
-**Made with ❤️ for the Sudanese NLP Community** 🇸🇩
+**Made with ❤️ by Sudaverse for the Sudanese NLP Community** 🇸🇩
