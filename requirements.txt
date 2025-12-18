@@ -1,0 +1,14 @@
+# Sudaverse Normalizer - Python Dependencies
+# ==========================================
+
+# Optional: For progress bars in batch processing
+tqdm>=4.65.0
+
+# Optional: For testing (development only)
+pytest>=7.4.0
+
+# Optional: For type checking (development only)
+mypy>=1.5.0
+
+# No mandatory dependencies - the normalizer uses only Python standard library!
+# The core functionality works with Python 3.7+ without any external packages.
