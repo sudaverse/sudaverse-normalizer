@@ -62,6 +62,10 @@ class NormalizationConfig:
     remove_hashtags: bool = False  # Keep hashtags by default
     remove_latin_chars: bool = False  # Remove English/Latin characters
     remove_timestamps: bool = True  # Remove timestamps in all formats
+    remove_html_tags: bool = True  # Remove HTML/XML tags
+    remove_special_chars: bool = True  # Remove unrecognized/special characters
+    remove_decorative_lines: bool = True  # Remove lines made of tatweel/kashida characters
+    preserve_arabic_punctuation: bool = False  # Keep Arabic punctuation when removing special chars
     
     # Text length
     min_length: int = 0  # Minimum character length
@@ -99,6 +103,18 @@ class SudaneseNormalizer:
         '\u0657',  # Inverted damma
         '\u0658',  # Mark noon ghunna
         '\u0670',  # Superscript alef
+    ]
+    
+    # Tatweel/Kashida character (used for decorative lines)
+    TATWEEL = '\u0640'  # Arabic tatweel/kashida ـ
+    
+    # Valid Arabic characters range (for special character detection)
+    ARABIC_RANGES = [
+        (0x0600, 0x06FF),  # Arabic
+        (0x0750, 0x077F),  # Arabic Supplement
+        (0x08A0, 0x08FF),  # Arabic Extended-A
+        (0xFB50, 0xFDFF),  # Arabic Presentation Forms-A
+        (0xFE70, 0xFEFF),  # Arabic Presentation Forms-B
     ]
     
     # Punctuation mappings
@@ -162,6 +178,15 @@ class SudaneseNormalizer:
         self.repeated_char_pattern = re.compile(r'(.)\1{' + str(self.config.max_char_repeat) + r',}')
         self.whitespace_pattern = re.compile(r'\s+')
         self.repeated_punct_pattern = re.compile(r'([!?.,:;])\1+')
+        
+        # HTML/XML tag pattern
+        self.html_tag_pattern = re.compile(r'<[^>]*>')
+        
+        # Decorative lines pattern (3+ consecutive tatweel characters)
+        self.decorative_line_pattern = re.compile(f'{self.TATWEEL}{{3,}}')
+        
+        # Arabic character check pattern
+        self.arabic_char_pattern = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]')
     
     def normalize(self, text: str) -> str:
         """
@@ -205,6 +230,12 @@ class SudaneseNormalizer:
         
         if self.config.remove_timestamps:
             text = self._remove_timestamps(text)
+            
+        if self.config.remove_html_tags:
+            text = self._remove_html_tags(text)
+            
+        if self.config.remove_decorative_lines:
+            text = self._remove_decorative_lines(text)
         
         if self.config.remove_diacritics:
             text = self._remove_diacritics(text)
@@ -217,6 +248,9 @@ class SudaneseNormalizer:
         
         if self.config.normalize_teh:
             text = self._normalize_teh_marbuta(text)
+            
+        if self.config.remove_special_chars:
+            text = self._remove_special_chars(text)
         
         if self.config.normalize_punctuation:
             text = self._normalize_punctuation(text)
@@ -341,6 +375,45 @@ class SudaneseNormalizer:
         text = re.sub(r'\b\d{10,13}\b', '', text)
         return text
     
+    def _remove_html_tags(self, text: str) -> str:
+        """Remove HTML/XML tags from text."""
+        return self.html_tag_pattern.sub('', text)
+    
+    def _remove_decorative_lines(self, text: str) -> str:
+        """Remove decorative lines made of tatweel/kashida characters."""
+        # Remove lines with 3+ consecutive tatweel characters
+        text = self.decorative_line_pattern.sub('', text)
+        # Also remove standalone tatweel characters (single kashida)
+        text = text.replace(self.TATWEEL, '')
+        return text
+    
+    def _remove_special_chars(self, text: str) -> str:
+        """Remove unrecognized/special characters, keeping only Arabic text, numbers, and basic punctuation."""
+        # Define what to keep
+        keep_chars = set()
+        
+        # Always keep Arabic letters and numbers
+        for char in text:
+            code_point = ord(char)
+            # Check if character is in Arabic ranges
+            is_arabic = any(start <= code_point <= end for start, end in self.ARABIC_RANGES)
+            
+            if is_arabic:
+                keep_chars.add(char)
+            # Keep Western digits
+            elif char.isdigit():
+                keep_chars.add(char)
+            # Keep basic punctuation if configured
+            elif self.config.preserve_arabic_punctuation and char in '،؟؛.!?,:;':
+                keep_chars.add(char)
+            # Keep whitespace
+            elif char.isspace():
+                keep_chars.add(char)
+        
+        # Filter text to keep only allowed characters
+        cleaned_text = ''.join(char for char in text if char in keep_chars)
+        return cleaned_text
+    
     def _normalize_sudanese_patterns(self, text: str) -> str:
         """Normalize Sudanese-specific dialect patterns."""
         for pattern, replacement in self.SUDANESE_PATTERNS.items():
@@ -401,9 +474,11 @@ if __name__ == "__main__":
     test_text = """
     السَّلامُ عليكم ورحمة الله وبركاته!!!
     أنا من السودان 🇸🇩 وأحِب بلدي كتيييييير
+    <p>هذا نص HTML</p> <div>مع علامات</div>
+    ـــــــــــــــــــــ ـــــــــــــــــــــ
     للتواصل: test@example.com
     موقعنا: https://example.com
-    @username #السودان
+    @username #السودان ★☆■□◆◇
     الأرقام: ١٢٣٤٥ و 67890
     """
     

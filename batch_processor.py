@@ -366,6 +366,14 @@ Examples:
                        help='Convert Arabic-Indic numerals to Western')
     parser.add_argument('--max-repeat', type=int, default=2,
                        help='Maximum character repetition (default: 2)')
+    parser.add_argument('--keep-html', action='store_true',
+                       help='Keep HTML/XML tags (removed by default)')
+    parser.add_argument('--keep-special-chars', action='store_true',
+                       help='Keep unrecognized/special characters (removed by default)')
+    parser.add_argument('--keep-decorative-lines', action='store_true',
+                       help='Keep decorative lines made of tatweel/kashida characters (removed by default)')
+    parser.add_argument('--preserve-arabic-punct', action='store_true',
+                       help='Preserve Arabic punctuation when removing special characters')
     
     args = parser.parse_args()
     
@@ -376,7 +384,11 @@ Examples:
         remove_latin_chars=args.remove_latin,
         normalize_numbers=args.normalize_numbers or args.remove_latin,  # Auto-enable with --remove-latin
         remove_timestamps=args.remove_latin,  # Auto-enable with --remove-latin
-        max_char_repeat=args.max_repeat
+        max_char_repeat=args.max_repeat,
+        remove_html_tags=not args.keep_html,
+        remove_special_chars=not args.keep_special_chars,
+        remove_decorative_lines=not args.keep_decorative_lines,
+        preserve_arabic_punctuation=args.preserve_arabic_punct
     )
     
     # Create processor

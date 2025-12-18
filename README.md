@@ -17,6 +17,9 @@ A robust, production-ready text normalizer specifically designed for **Sudanese 
   - Normalize Teh Marbuta (ة) to Heh (ه)
 - **🧹 Cleaning Features**:
   - Remove URLs, emails, mentions, and hashtags
+  - Remove HTML/XML tags and unrecognized special characters
+  - Remove decorative lines made of tatweel/kashida characters (ـــــــــــ)
+  - Remove English/Latin text and timestamps
   - Remove repeated characters (e.g., "كتييييير" → "كتيير")
   - Normalize punctuation and whitespace
 - **⚙️ Highly Configurable**: 20+ configuration options for custom normalization pipelines
@@ -114,6 +117,18 @@ python batch_processor.py --remove-latin
 # Keep hashtags for social media analysis
 python batch_processor.py --keep-hashtags
 
+# Keep HTML tags in the output
+python batch_processor.py --keep-html
+
+# Keep special characters and symbols
+python batch_processor.py --keep-special-chars
+
+# Keep decorative lines made of tatweel characters
+python batch_processor.py --keep-decorative-lines
+
+# Preserve Arabic punctuation when removing special characters
+python batch_processor.py --preserve-arabic-punct
+
 # Convert Arabic-Indic numbers to Western (١٢٣ → 123)
 python batch_processor.py --normalize-numbers
 
@@ -125,6 +140,9 @@ python batch_processor.py --max-repeat 3
 
 # Combine multiple options (pure Arabic with no diacritics)
 python batch_processor.py --remove-latin --no-diacritics
+
+# Keep HTML and special chars but remove decorative lines
+python batch_processor.py --keep-html --keep-special-chars
 ```
 
 ### Get Help
@@ -175,6 +193,39 @@ text = "يااااا أخوي الموقع: https://example.com #السودان 
 normalized = normalizer.normalize(text)
 print(normalized)
 # Output: "يا اخوي الموقع: #السودان 123"
+
+# Example with HTML and special characters
+html_text = """
+<p>مرحباً بكم في موقعنا</p>
+ـــــــــــــــــــــــــــــــــــــــــــــــ
+<div>النص العربي مع ★☆■ رموز خاصة</div>
+English text mixed in
+ـــــــــــــــ
+"""
+
+# Clean version (default behavior)
+clean_config = NormalizationConfig(
+    remove_html_tags=True,
+    remove_special_chars=True,
+    remove_decorative_lines=True,
+    remove_latin_chars=True
+)
+clean_normalizer = SudaneseNormalizer(config=clean_config)
+clean_result = clean_normalizer.normalize(html_text)
+print(clean_result)
+# Output: "مرحباً بكم في موقعنا النص العربي مع رموز خاصه"
+
+# Preserve version
+preserve_config = NormalizationConfig(
+    remove_html_tags=False,
+    remove_special_chars=False,
+    remove_decorative_lines=False,
+    preserve_arabic_punctuation=True
+)
+preserve_normalizer = SudaneseNormalizer(config=preserve_config)
+preserve_result = preserve_normalizer.normalize(html_text)
+print(preserve_result)
+# Output: "<p>مرحباً بكم في موقعنا</p> ـــــــــــــــــــــــــــــــــــــــــــــــ <div>النص العربي مع ★☆■ رموز خاصه</div> English text mixed in ـــــــــــــــ"
 ```
 
 ## 📖 Configuration Options
@@ -215,6 +266,10 @@ class NormalizationConfig:
     remove_hashtags: bool = False
     remove_latin_chars: bool = False  # Remove English/Latin words (keeps numbers)
     remove_timestamps: bool = True  # Remove timestamps in all formats
+    remove_html_tags: bool = True  # Remove HTML/XML tags
+    remove_special_chars: bool = True  # Remove unrecognized/special characters
+    remove_decorative_lines: bool = True  # Remove tatweel/kashida decorative lines
+    preserve_arabic_punctuation: bool = False  # Keep Arabic punctuation with special char removal
     
     # Text length
     min_length: int = 0
@@ -353,6 +408,35 @@ print(stats)
 ### Sudanese Dialect Patterns
 
 The normalizer includes specific handling for common Sudanese dialect patterns and expressions. This is automatically applied during normalization.
+
+### HTML and Special Character Handling
+
+The normalizer can clean text from various sources:
+
+- **HTML Tag Removal**: Strips all HTML/XML tags (e.g., `<p>`, `<div>`, `<span>`)
+- **Special Character Filtering**: Removes unrecognized symbols and special characters
+- **Decorative Line Removal**: Removes lines made of tatweel/kashida characters (ــــــــــ)
+- **Preserve Options**: Selectively keep HTML tags, special characters, or decorative elements
+
+Example:
+```python
+from normalizer_code import SudaneseNormalizer, NormalizationConfig
+
+# Remove HTML and special characters (default)
+config = NormalizationConfig(
+    remove_html_tags=True,
+    remove_special_chars=True,
+    remove_decorative_lines=True
+)
+
+# Or preserve them
+config = NormalizationConfig(
+    remove_html_tags=False,
+    remove_special_chars=False,
+    remove_decorative_lines=False,
+    preserve_arabic_punctuation=True
+)
+```
 
 ### Multiple Encoding Support
 
